@@ -1,6 +1,7 @@
 import yfinance as yf
 import pandas as pd
 from pathlib import Path
+from utils import read_config
 
 def fetch_data(ticker: str, start_date: str, end_date: str, output_path: Path):
     """
@@ -32,13 +33,18 @@ def fetch_data(ticker: str, start_date: str, end_date: str, output_path: Path):
 
 # This block allows us to test the function directly by running this script
 if __name__ == '__main__':
-    # Define parameters for a test run
-    TICKER = "SPY"
-    START_DATE = "2020-01-01"
-    END_DATE = "2025-01-01" # Using a future date to get the most recent data
+    # Read configuration from the YAML file
+    config = read_config()
     
-    # Use pathlib to create a robust file path
-    # This navigates up one level from src and then into the data folder
-    OUTPUT_PATH = Path(__file__).resolve().parent.parent / "data" / f"{TICKER}_data.csv"
-    
-    fetch_data(ticker=TICKER, start_date=START_DATE, end_date=END_DATE, output_path=OUTPUT_PATH)
+    if config:
+        # Get parameters from the 'data_ingestion' section of the config
+        params = config['data_ingestion']
+        TICKER = params['ticker']
+        START_DATE = params['start_date']
+        END_DATE = params['end_date']
+        
+        # Define the output path
+        OUTPUT_PATH = Path(__file__).resolve().parent.parent / "data" / f"{TICKER}_data.csv"
+        
+        # Call the function with parameters from the config file
+        fetch_data(ticker=TICKER, start_date=START_DATE, end_date=END_DATE, output_path=OUTPUT_PATH)
