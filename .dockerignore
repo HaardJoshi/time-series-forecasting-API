@@ -1,0 +1,17 @@
+# Exclude virtual environment
+venv/
+
+# Exclude caches and temp files
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Exclude local data (it will be fetched in the container)
+data/
+
+# Exclude notebooks
+notebooks/
+
+# Exclude git files
+.git/
+.gitignore/
