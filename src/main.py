@@ -1,70 +1,86 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from prophet import Prophet
 from prophet.serialize import model_from_json
 from pathlib import Path
+import atexit
+import httpx
+
+# Import our new training function
+from model_training import train_and_save_model
 
 # --- Configuration ---
-# Create a FastAPI app instance
-app = FastAPI(title="SPY Forecast API", version="1.0")
+app = FastAPI(title="Dynamic Stock Forecast API", version="2.0")
 
-# Define the path to our trained model
 ROOT_DIR = Path(__file__).resolve().parent.parent
 MODELS_DIR = ROOT_DIR / "models"
-MODEL_PATH = MODELS_DIR / "prophet_model.json"
 
-# --- Model Loading ---
-# This block will run once when the API starts
-try:
-    print(f"Loading model from {MODEL_PATH}...")
-    with open(MODEL_PATH, 'r') as fin:
-        model = model_from_json(fin.read())
-    print("Model loaded successfully.")
-except FileNotFoundError:
-    print(f"Error: Model file not found at {MODEL_PATH}")
-    model = None
-except Exception as e:
-    print(f"An error occurred while loading the model: {e}")
-    model = None
+# This is a cache to hold loaded models in memory
+model_cache = {}
+
+# --- Model Loading Logic ---
+def get_model_path(ticker: str) -> Path:
+    """Gets the path for a given ticker's model file."""
+    return MODELS_DIR / f"prophet_model_{ticker}.json"
+
+def load_model(ticker: str):
+    """
+    Loads a model into the cache. If it doesn't exist,
+    it triggers training.
+    """
+    if ticker in model_cache:
+        print(f"Model for {ticker} found in cache.")
+        return model_cache[ticker]
+    
+    model_path = get_model_path(ticker)
+    
+    if not model_path.exists():
+        print(f"No model found for {ticker}. Starting training...")
+        success = train_and_save_model(ticker)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Could not train model for ticker {ticker}. Ticker may be invalid.")
+    
+    try:
+        print(f"Loading model from {model_path}...")
+        with open(model_path, 'r') as fin:
+            model = model_from_json(fin.read())
+        model_cache[ticker] = model # Save to cache
+        print("Model loaded successfully.")
+        return model
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading model for {ticker}: {e}")
 
 # --- API Endpoints ---
 @app.get("/")
 def read_root():
-    """
-    A simple root endpoint to check if the API is running.
-    """
-    return {"message": "Welcome to the SPY Forecasting API. Go to /predict to get a forecast."}
+    return {"message": "Welcome to the Dynamic Stock Forecasting API."}
 
 @app.get("/predict")
-def predict_forecast(days: int = 7):
+def predict_forecast(ticker: str, days: int = 7):
     """
-    Generates a future forecast for the specified number of days.
-    
-    Query Parameter:
-    - days (int): The number of days to forecast into the future. Default is 7.
+    Generates a future forecast for the specified ticker and days.
     """
-    if model is None:
-        return {"error": "Model not loaded. Please train the model first."}
-
     try:
-        # Create a future dataframe for the specified number of days
-        future_df = model.make_future_dataframe(periods=days, freq='D')
+        model = load_model(ticker.upper())
         
-        # Generate the forecast
+        # Create a future dataframe
+        future_df = model.make_future_dataframe(periods=days, freq='D')
         forecast = model.predict(future_df)
         
-        # Extract and return the relevant part of the forecast
-        # We return the last 'days' rows
+        # Extract and return the relevant part
         response_data = forecast.tail(days)[['ds', 'yhat', 'yhat_lower', 'yhat_upper']]
-        
-        # Convert to a more JSON-friendly format
         response_data['ds'] = response_data['ds'].dt.strftime('%Y-%m-%d')
         
         return response_data.to_dict('records')
-
+        
+    except HTTPException as e:
+        # Re-raise HTTPException to return proper error codes
+        raise e
     except Exception as e:
-        return {"error": f"An error occurred during prediction: {e}"}
+        return HTTPException(status_code=500, detail=f"An error occurred during prediction: {e}")
 
-# This allows running the app directly using "python src/main.py"
+# This allows running the app directly
 if __name__ == "__main__":
+    # Pre-load the SPY model on startup
+    load_model("SPY") 
     uvicorn.run(app, host="127.0.0.1", port=8000)
