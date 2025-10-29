@@ -2,8 +2,10 @@ import pandas as pd
 from prophet import Prophet
 from pathlib import Path
 from prophet.serialize import model_to_json
-from utils import read_config
-from data_ingestion import fetch_data
+
+# Import from our other src files
+from .utils import read_config
+from .data_ingestion import fetch_data
 
 # Define paths
 ROOT_DIR = Path(__file__).resolve().parent.parent

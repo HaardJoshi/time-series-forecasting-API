@@ -1,7 +1,9 @@
 import yfinance as yf
 import pandas as pd
 from pathlib import Path
-from utils import read_config
+
+# Import from our other src files
+from .utils import read_config
 
 def fetch_data(ticker: str, start_date: str, end_date: str, output_path: Path):
     """

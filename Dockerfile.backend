@@ -1,3 +1,5 @@
+# Dockerfile.backend
+
 # 1. Start from an official Python base image
 FROM python:3.11-slim
 
@@ -10,8 +12,7 @@ COPY requirements.txt requirements.txt
 # 4. Install all the dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 5. Copy the rest of your application code
-# (src folder, models folder, config.yaml)
+# 5. Copy your application code
 COPY src/ src/
 COPY models/ models/
 COPY config.yaml config.yaml
@@ -20,5 +21,4 @@ COPY config.yaml config.yaml
 EXPOSE 8000
 
 # 7. Define the command to run your app
-# This will run: uvicorn src.main:app --host 0.0.0.0 --port 8000
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

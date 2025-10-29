@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # This mounts your local folders into the container
+      # so it can save new models
+      - ./data:/app/data
+      - ./models:/app/models
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "8501:8501"
+    environment:
+      # This is the magic: it tells the frontend
+      # to find the API at the service name "backend"
+      - API_BACKEND_HOST=backend
+    depends_on:
+      - backend
